@@ -6,6 +6,6 @@
   "requirements": [],
   "codeowners": ["@KevinHekert"],
   "iot_class": "calculated",
-  "config_flow": false,
+  "config_flow": true,
   "platforms": ["calendar"]
 }
