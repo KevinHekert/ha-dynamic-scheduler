@@ -6,6 +6,10 @@
   "requirements": [],
   "codeowners": ["@KevinHekert"],
   "iot_class": "calculated",
-  "config_flow": false,
-  "platforms": ["calendar"]
+  "config_flow": true,
+  "platforms": ["calendar"],
+  "requirements": [
+      "python-frank-energie==6.2.0",
+      "entsoe-py==0.7.8"
+  ]
 }

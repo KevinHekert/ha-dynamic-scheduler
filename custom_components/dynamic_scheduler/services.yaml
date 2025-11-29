@@ -1,10 +1,48 @@
 schedule:
-  name: Schedule (placeholder)
-  description: Placeholder service for Dynamic Scheduler.
+  name: Schedule
+  description: Calculate and store the cheapest schedule for a calendar.
   fields:
-    dummy:
-      name: Dummy
-      description: No-op field for now
-      required: false
+    calendar_entity_id:
+      name: Calendar
+      description: Dynamic Scheduler calendar to fill
+      required: true
       selector:
-        text: {}
+        entity:
+          domain: calendar
+    deadline_time:
+      name: Deadline time
+      description: Time of day when it must be finished (next occurrence)
+      required: true
+      selector:
+        time: {}
+    runtime:
+      name: Runtime
+      description: Total runtime as HH:MM (e.g. 03:00 = 3 hours)
+      required: true
+      selector:
+        time: {}
+    slot_length_minutes:
+      name: Slot length
+      description: Slot size in minutes
+      required: false
+      default: 60
+      selector:
+        number:
+          min: 5
+          max: 240
+          step: 5
+          unit_of_measurement: min
+    continuous:
+      name: Continuous run
+      description: If true, schedule one continuous block instead of scattered slots
+      required: false
+      default: false
+      selector:
+        boolean: {}
+    clear_existing:
+      name: Clear existing events
+      description: Replace existing events for this calendar instead of appending
+      required: false
+      default: true
+      selector:
+        boolean: {}

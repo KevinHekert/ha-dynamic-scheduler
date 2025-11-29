@@ -1,10 +1,15 @@
+"""Calendar platform for the Dynamic Scheduler integration."""
+
 from __future__ import annotations
+
 from datetime import datetime
 from typing import Any, Dict, List
+
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
 from .const import DOMAIN
 
 
@@ -13,21 +18,25 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Every config entry gives one calendar."""
-    name = entry.title or "Dynamic Scheduler"
-    entity_id = f"{DOMAIN}_{entry.entry_id}"
+    """Set up a Dynamic Scheduler calendar for this config entry."""
+
+    name = entry.data.get("name", entry.title)
+    unique_id = f"{entry.entry_id}"
 
     calendar = DynamicSchedulerCalendar(
         hass=hass,
         entry_id=entry.entry_id,
         name=name,
-        unique_id=entity_id,
+        unique_id=unique_id,
     )
+
     async_add_entities([calendar])
 
 
 class DynamicSchedulerCalendar(CalendarEntity):
-    """Calendar filled by the Dynamic Scheduler service."""
+    """Calendar entity for a single Dynamic Scheduler entry."""
+
+    _attr_should_poll = False  # we push zelf data, geen polling nodig
 
     def __init__(self, hass: HomeAssistant, entry_id: str, name: str, unique_id: str):
         self.hass = hass
@@ -35,24 +44,31 @@ class DynamicSchedulerCalendar(CalendarEntity):
         self._attr_name = name
         self._attr_unique_id = unique_id
 
+    # -------------------------
+    # EVENT DATA PER CALENDAR
+    # -------------------------
     @property
     def events_data(self) -> List[Dict[str, Any]]:
-        """Events stored by the integration."""
+        """Return stored events for this calendar."""
         domain = self.hass.data.setdefault(DOMAIN, {})
-        return domain.setdefault("events_by_calendar", {}).get(self.entity_id, [])
+        events = domain.setdefault("events_by_calendar", {})
+        return events.setdefault(self.entity_id, [])
+
 
     async def async_get_events(
         self,
         hass: HomeAssistant,
         start_date: datetime,
         end_date: datetime,
-    ) -> list[CalendarEvent]:
+    ) -> List[CalendarEvent]:
         """Return events between start and end."""
-        result = []
+        results: List[CalendarEvent] = []
+
         for ev in self.events_data:
             if ev["end"] <= start_date or ev["start"] >= end_date:
                 continue
-            result.append(
+
+            results.append(
                 CalendarEvent(
                     summary=ev.get("summary", self.name),
                     start=ev["start"],
@@ -60,4 +76,24 @@ class DynamicSchedulerCalendar(CalendarEntity):
                     description=ev.get("description"),
                 )
             )
-        return result
+
+        return results
+
+    @property
+    def event(self) -> CalendarEvent | None:
+        """Return the next upcoming event (for calendar state)."""
+        from homeassistant.util import dt as dt_util
+
+        now = dt_util.utcnow()
+        future = [ev for ev in self.events_data if ev["end"] > now]
+        if not future:
+            return None
+
+        ev = sorted(future, key=lambda e: e["start"])[0]
+        return CalendarEvent(
+            summary=ev.get("summary", self.name),
+            start=ev["start"],
+            end=ev["end"],
+            description=ev.get("description"),
+        )
+
