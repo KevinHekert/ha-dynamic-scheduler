@@ -1,0 +1,11 @@
+{
+  "domain": "dynamic_scheduler",
+  "name": "Dynamic Scheduler",
+  "version": "0.0.1",
+  "documentation": "https://github.com/KevinHekert/ha-dynamic-scheduler",
+  "requirements": [],
+  "codeowners": ["@KevinHekert"],
+  "iot_class": "calculated",
+  "config_flow": false,
+  "platforms": ["calendar"]
+}
