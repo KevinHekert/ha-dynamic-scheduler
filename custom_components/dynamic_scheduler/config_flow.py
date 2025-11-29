@@ -25,11 +25,14 @@ class DynamicSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         """First step shown when the user adds the integration."""
         errors = {}
-
+        
+        provider_options = {
+            PROVIDER_FRANK: "Frank Energie",
+        }
         if user_input is not None:
             name = user_input["name"]
-
             provider = user_input[CONF_PROVIDER]
+
             provider_cfg = {}
             if provider == PROVIDER_FRANK:
                 provider_cfg[CONF_USE_ALL_IN] = user_input[CONF_USE_ALL_IN]
