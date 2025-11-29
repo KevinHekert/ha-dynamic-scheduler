@@ -1,7 +1,8 @@
 """Dynamic Scheduler integration for Home Assistant."""
 
 from __future__ import annotations
-
+import voluptuous as vol
+from homeassistant.helpers import config_validation as cv
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -10,7 +11,18 @@ from homeassistant.helpers.typing import ConfigType
 from .const import DOMAIN
 
 PLATFORMS: list[Platform] = [Platform.CALENDAR]
-
+SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Required("calendar_entity_id"): cv.entity_id,
+        vol.Required("deadline_time"): cv.time,  # wordt datetime.time
+        vol.Required("runtime"): cv.time,        # wordt datetime.time
+        vol.Optional("slot_length_minutes", default=60): vol.All(
+            int, vol.Range(min=5, max=240)
+        ),
+        vol.Optional("continuous", default=False): cv.boolean,
+        vol.Optional("clear_existing", default=True): cv.boolean,
+    }
+)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Dynamic Scheduler integration (no YAML config)."""
@@ -56,7 +68,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         )
 
 
-    hass.services.async_register(DOMAIN, "schedule", handle_schedule)
+    hass.services.async_register(
+    DOMAIN,
+    "schedule",
+    handle_schedule,
+    schema=SERVICE_SCHEMA,
+    )
 
     return True
 
