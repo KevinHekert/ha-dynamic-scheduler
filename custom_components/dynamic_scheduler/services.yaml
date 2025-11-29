@@ -1,0 +1,10 @@
+schedule:
+  name: Schedule (placeholder)
+  description: Placeholder service for Dynamic Scheduler.
+  fields:
+    dummy:
+      name: Dummy
+      description: No-op field for now
+      required: false
+      selector:
+        text: {}
