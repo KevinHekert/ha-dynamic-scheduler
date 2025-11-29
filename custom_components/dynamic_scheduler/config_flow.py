@@ -14,6 +14,7 @@ from .const import (
     CONF_PROVIDER_CONFIG,
     PROVIDER_FRANK,
     PROVIDER_ENTSOE,
+    PROVIDER_EASYENERGY_APX,
     CONF_USE_ALL_IN,
     CONF_ENTSOE_API_KEY,
     CONF_ENTSOE_COUNTRY,
@@ -32,6 +33,7 @@ class DynamicSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         provider_options = {
             PROVIDER_FRANK: "Frank Energie",
             PROVIDER_ENTSOE: "ENTSO-E Day Ahead Market",
+            PROVIDER_EASYENERGY_APX: "EasyEnergy APX Market",
         }
         if user_input is not None:
             name = user_input["name"]
