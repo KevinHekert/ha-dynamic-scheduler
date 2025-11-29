@@ -36,6 +36,8 @@ async def async_setup_entry(
 class DynamicSchedulerCalendar(CalendarEntity):
     """Calendar entity for a single Dynamic Scheduler entry."""
 
+    _attr_should_poll = False  # we push zelf data, geen polling nodig
+
     def __init__(self, hass: HomeAssistant, entry_id: str, name: str, unique_id: str):
         self.hass = hass
         self._entry_id = entry_id
@@ -75,3 +77,22 @@ class DynamicSchedulerCalendar(CalendarEntity):
             )
 
         return results
+
+    @property
+    def event(self) -> CalendarEvent | None:
+        """Return the next upcoming event (for calendar state)."""
+        from homeassistant.util import dt as dt_util
+
+        now = dt_util.utcnow()
+        future = [ev for ev in self.events_data if ev["end"] > now]
+        if not future:
+            return None
+
+        ev = sorted(future, key=lambda e: e["start"])[0]
+        return CalendarEvent(
+            summary=ev.get("summary", self.name),
+            start=ev["start"],
+            end=ev["end"],
+            description=ev.get("description"),
+        )
+
