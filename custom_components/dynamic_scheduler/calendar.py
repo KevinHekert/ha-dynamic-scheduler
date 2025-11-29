@@ -52,7 +52,8 @@ class DynamicSchedulerCalendar(CalendarEntity):
         """Return stored events for this calendar."""
         domain = self.hass.data.setdefault(DOMAIN, {})
         events = domain.setdefault("events_by_calendar", {})
-        return events.setdefault(self._attr_unique_id, [])
+        return events.setdefault(self.entity_id, [])
+
 
     async def async_get_events(
         self,
