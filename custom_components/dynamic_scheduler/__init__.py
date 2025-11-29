@@ -12,7 +12,7 @@ from homeassistant.util import dt as dt_util, slugify
 
 from .const import DOMAIN, CONF_PROVIDER, CONF_PROVIDER_CONFIG
 from .price_providers import create_price_provider
-from .scheduler import store_test_slots_for_calendar
+from .scheduler import store_test_slots_for_calendar, schedule_calendar_from_prices
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -114,13 +114,18 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             )
 
 
-        await store_test_slots_for_calendar(
+
+        price_records = await provider.async_get_prices(hass, now, deadline)
+        await schedule_calendar_from_prices(
             hass=hass,
             calendar_entity_id=calendar_entity_id,
-            start=now,
+            price_records=price_records,
+            window_start=now,
+            window_end=deadline,
             total_run_minutes=total_run_minutes,
-            slot_length_minutes=slot_length,
+            continuous=continuous,
             clear_existing=clear_existing,
+            base_minutes=15,  # interne resolutie
         )
 
     hass.services.async_register(
