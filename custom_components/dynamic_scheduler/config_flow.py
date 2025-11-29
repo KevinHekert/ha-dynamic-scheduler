@@ -8,7 +8,13 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    CONF_PROVIDER,
+    CONF_PROVIDER_CONFIG,
+    PROVIDER_FRANK,
+    CONF_USE_ALL_IN
+)
 
 
 class DynamicSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -23,16 +29,25 @@ class DynamicSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             name = user_input["name"]
 
+            provider = user_input[CONF_PROVIDER]
+            provider_cfg = {}
+            if provider == PROVIDER_FRANK:
+                provider_cfg[CONF_USE_ALL_IN] = user_input[CONF_USE_ALL_IN]
+
             return self.async_create_entry(
                 title=name,
                 data={
                     "name": name,
+                    CONF_PROVIDER: provider,
+                    CONF_PROVIDER_CONFIG: provider_cfg,
                 },
             )
 
         data_schema = vol.Schema(
             {
-                vol.Required("name"): cv.string,  # bijv. "Auto", "Wasdroger"
+                vol.Required("name"): cv.string,
+                vol.Required(CONF_PROVIDER, default=PROVIDER_FRANK): vol.In(provider_options),
+                vol.Optional(CONF_USE_ALL_IN, default=True): cv.boolean,
             }
         )
 
