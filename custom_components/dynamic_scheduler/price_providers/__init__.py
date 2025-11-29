@@ -12,7 +12,10 @@ from ..const import (
     CONF_PROVIDER,
     CONF_PROVIDER_CONFIG,
     PROVIDER_FRANK,
+    PROVIDER_ENTSOE,
     CONF_USE_ALL_IN,
+    CONF_ENTSOE_API_KEY,
+    CONF_ENTSOE_COUNTRY,
 )
 
 
@@ -36,16 +39,8 @@ class PriceProvider(Protocol):
 
 
 def create_price_provider(config: Dict[str, Any]) -> PriceProvider:
-    """Factory that creates a PriceProvider from config entry data.
+    """Factory that creates a PriceProvider from config entry data."""
 
-    Expected config structure:
-    {
-      CONF_PROVIDER: "frank_energie",
-      CONF_PROVIDER_CONFIG: {
-        "use_all_in": True
-      }
-    }
-    """
     provider_id: str = config[CONF_PROVIDER]
     provider_cfg: Dict[str, Any] = config.get(CONF_PROVIDER_CONFIG, {})
 
@@ -54,5 +49,17 @@ def create_price_provider(config: Dict[str, Any]) -> PriceProvider:
 
         use_all_in = provider_cfg.get(CONF_USE_ALL_IN, True)
         return FrankEnergyProvider(use_all_in=use_all_in)
+
+    if provider_id == PROVIDER_ENTSOE:
+        from .entsoe_market import EntsoeMarketProvider
+
+        api_key = provider_cfg.get(CONF_ENTSOE_API_KEY)
+        country = provider_cfg.get(CONF_ENTSOE_COUNTRY, "NL")
+
+        if not api_key:
+            # Simpel maar duidelijk; HA-log vertelt wat er mist
+            raise ValueError("ENTSO-E provider requires an API key (entsoe_api_key)")
+
+        return EntsoeMarketProvider(api_key=api_key, country_code=country)
 
     raise ValueError(f"Unknown price provider id: {provider_id}")

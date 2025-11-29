@@ -77,7 +77,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         target_entry: ConfigEntry | None = None
         for entry in hass.config_entries.async_entries(DOMAIN):
             name = entry.data.get("name") or entry.title
-            if name and slugify.slugify(name) == cal_slug:
+            if name and slugify(name) == cal_slug:
                 target_entry = entry
                 break
 

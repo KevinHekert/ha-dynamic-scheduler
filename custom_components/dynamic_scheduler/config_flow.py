@@ -13,7 +13,10 @@ from .const import (
     CONF_PROVIDER,
     CONF_PROVIDER_CONFIG,
     PROVIDER_FRANK,
-    CONF_USE_ALL_IN
+    PROVIDER_ENTSOE,
+    CONF_USE_ALL_IN,
+    CONF_ENTSOE_API_KEY,
+    CONF_ENTSOE_COUNTRY,
 )
 
 
@@ -25,9 +28,10 @@ class DynamicSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         """First step shown when the user adds the integration."""
         errors = {}
-        
+
         provider_options = {
             PROVIDER_FRANK: "Frank Energie",
+            PROVIDER_ENTSOE: "ENTSO-E Day Ahead Market",
         }
         if user_input is not None:
             name = user_input["name"]
@@ -36,6 +40,16 @@ class DynamicSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             provider_cfg = {}
             if provider == PROVIDER_FRANK:
                 provider_cfg[CONF_USE_ALL_IN] = user_input[CONF_USE_ALL_IN]
+            
+            if provider == PROVIDER_ENTSOE:
+                api_key = user_input.get(CONF_ENTSOE_API_KEY)
+                country = user_input.get(CONF_ENTSOE_COUNTRY, "NL")
+
+                if not api_key:
+                    errors["base"] = "entsoe_api_key_missing"
+                else:
+                    provider_cfg[CONF_ENTSOE_API_KEY] = api_key
+                    provider_cfg[CONF_ENTSOE_COUNTRY] = country or "NL"
 
             return self.async_create_entry(
                 title=name,
@@ -49,8 +63,14 @@ class DynamicSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema = vol.Schema(
             {
                 vol.Required("name"): cv.string,
-                vol.Required(CONF_PROVIDER, default=PROVIDER_FRANK): vol.In(provider_options),
+                vol.Required(CONF_PROVIDER, default=PROVIDER_FRANK): vol.In(
+                    provider_options
+                ),
+                # Frank-specifiek; mag leeg blijven voor ENTSO-E
                 vol.Optional(CONF_USE_ALL_IN, default=True): cv.boolean,
+                # ENTSO-E-specifiek; verplicht als je die provider kiest
+                vol.Optional(CONF_ENTSOE_API_KEY): cv.string,
+                vol.Optional(CONF_ENTSOE_COUNTRY, default="NL"): cv.string,
             }
         )
 
