@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import voluptuous as vol
+
 from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN
 
@@ -15,15 +18,29 @@ class DynamicSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         """First step shown when the user adds the integration."""
+        errors = {}
+
         if user_input is not None:
-            # Create a config entry with no data yet
+            name = user_input["name"]
+
             return self.async_create_entry(
-                title="Dynamic Scheduler",
-                data={}
+                title=name,
+                data={
+                    "name": name,
+                },
             )
 
-        # First-time form: empty form (just a submit button)
-        return self.async_show_form(step_id="user", data_schema=None)
+        data_schema = vol.Schema(
+            {
+                vol.Required("name"): cv.string,  # bijv. "Auto", "Wasdroger"
+            }
+        )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=data_schema,
+            errors=errors,
+        )
 
 
 @callback
@@ -42,7 +59,7 @@ class DynamicSchedulerOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(
                 title="Dynamic Scheduler options",
-                data={}
+                data={},
             )
 
         return self.async_show_form(step_id="init", data_schema=None)
