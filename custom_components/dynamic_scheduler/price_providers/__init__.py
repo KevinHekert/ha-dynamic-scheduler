@@ -13,6 +13,7 @@ from ..const import (
     CONF_PROVIDER_CONFIG,
     PROVIDER_FRANK,
     PROVIDER_ENTSOE,
+    PROVIDER_EASYENERGY_APX,
     CONF_USE_ALL_IN,
     CONF_ENTSOE_API_KEY,
     CONF_ENTSOE_COUNTRY,
@@ -61,5 +62,10 @@ def create_price_provider(config: Dict[str, Any]) -> PriceProvider:
             raise ValueError("ENTSO-E provider requires an API key (entsoe_api_key)")
 
         return EntsoeMarketProvider(api_key=api_key, country_code=country)
+
+    if provider_id == PROVIDER_EASYENERGY_APX:
+        from .easyenergy_apx import EasyEnergyApxProvider
+
+        return EasyEnergyApxProvider()
 
     raise ValueError(f"Unknown price provider id: {provider_id}")
