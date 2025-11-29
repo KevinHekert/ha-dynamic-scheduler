@@ -1,6 +1,7 @@
 """Dynamic Scheduler integration for Home Assistant."""
 
 from __future__ import annotations
+import logging
 import voluptuous as vol
 from homeassistant.helpers import config_validation as cv
 from homeassistant.config_entries import ConfigEntry
@@ -10,6 +11,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
 
+_LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [Platform.CALENDAR]
 SERVICE_SCHEMA = vol.Schema(
     {
@@ -56,7 +58,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         total_run_minutes = runtime_time.hour * 60 + runtime_time.minute
 
         # Voor nu alleen loggen zodat we weten dat alles goed binnenkomt
-        hass.logger.warning(
+        _LOGGER.warning(
             "Dynamic Scheduler schedule(): calendar=%s deadline=%s runtime=%s (%s min) slot=%s continuous=%s clear=%s",
             calendar_entity_id,
             deadline,
