@@ -10,6 +10,8 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
+from .scheduler import store_test_slots_for_calendar
+
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [Platform.CALENDAR]
@@ -67,6 +69,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             slot_length,
             continuous,
             clear_existing,
+        )
+        await store_test_slots_for_calendar(
+            hass=hass,
+            calendar_entity_id=calendar_entity_id,
+            start=now,
+            total_run_minutes=total_run_minutes,
+            slot_length_minutes=slot_length,
+            clear_existing=clear_existing,
         )
 
 
