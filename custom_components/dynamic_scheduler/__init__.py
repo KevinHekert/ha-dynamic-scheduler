@@ -8,8 +8,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.util import dt as dt_util, slugify
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_PROVIDER, CONF_PROVIDER_CONFIG
+from .price_providers import create_price_provider
 from .scheduler import store_test_slots_for_calendar
 
 
@@ -32,21 +34,19 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Dynamic Scheduler integration (no YAML config)."""
 
     async def handle_schedule(call: ServiceCall) -> None:
-        """Basic schedule handler: parse calendar, runtime, and deadline."""
+        """Schedule handler: parse inputs, fetch prices, and (for now) write test slots."""
+        from datetime import timedelta
+
         calendar_entity_id: str = call.data["calendar_entity_id"]
-        deadline_time = call.data["deadline_time"]   # type: time
-        runtime_time = call.data["runtime"]          # type: time
+        deadline_time = call.data["deadline_time"]   # datetime.time
+        runtime_time = call.data["runtime"]          # datetime.time
         slot_length = call.data.get("slot_length_minutes", 60)
         continuous = call.data.get("continuous", False)
         clear_existing = call.data.get("clear_existing", True)
 
-        # HA time-utils
-        from homeassistant.util import dt as dt_util
-        from datetime import timedelta
-
         now = dt_util.now()
 
-        # Bereken eerstvolgende deadline
+        # 1) Eerstvolgende deadline bepalen
         deadline = now.replace(
             hour=deadline_time.hour,
             minute=deadline_time.minute,
@@ -59,7 +59,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         # Runtime HH:MM -> minuten
         total_run_minutes = runtime_time.hour * 60 + runtime_time.minute
 
-        # Voor nu alleen loggen zodat we weten dat alles goed binnenkomt
         _LOGGER.warning(
             "Dynamic Scheduler schedule(): calendar=%s deadline=%s runtime=%s (%s min) slot=%s continuous=%s clear=%s",
             calendar_entity_id,
@@ -70,6 +69,51 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             continuous,
             clear_existing,
         )
+
+        # 2) Bijbehorende config entry zoeken (op basis van naam -> entity_id)
+        #    entity_id = 'calendar.auto'  ->  'auto'
+        cal_slug = calendar_entity_id.split(".", 1)[1] if "." in calendar_entity_id else calendar_entity_id
+
+        target_entry: ConfigEntry | None = None
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            name = entry.data.get("name") or entry.title
+            if name and slugify.slugify(name) == cal_slug:
+                target_entry = entry
+                break
+
+        if target_entry is None:
+            _LOGGER.error(
+                "Dynamic Scheduler: no config entry found for calendar %s (slug=%s)",
+                calendar_entity_id,
+                cal_slug,
+            )
+            return
+
+        # 3) Provider-object maken op basis van config entry
+        provider_cfg = {
+            CONF_PROVIDER: target_entry.data[CONF_PROVIDER],
+            CONF_PROVIDER_CONFIG: target_entry.data.get(CONF_PROVIDER_CONFIG, {}),
+        }
+        provider = create_price_provider(provider_cfg)
+
+        # 4) Prijzen ophalen bij provider (Frank Energie API)
+        price_records = await provider.async_get_prices(hass, now, deadline)
+
+        _LOGGER.warning(
+            "Dynamic Scheduler: fetched %d price records from provider for window %s -> %s",
+            len(price_records),
+            now,
+            deadline,
+        )
+        if price_records:
+            _LOGGER.warning(
+                "Dynamic Scheduler: first record %s -> %s = %s",
+                price_records[0].start,
+                price_records[0].end,
+                price_records[0].value,
+            )
+
+
         await store_test_slots_for_calendar(
             hass=hass,
             calendar_entity_id=calendar_entity_id,
@@ -78,7 +122,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             slot_length_minutes=slot_length,
             clear_existing=clear_existing,
         )
-
 
     hass.services.async_register(
     DOMAIN,
