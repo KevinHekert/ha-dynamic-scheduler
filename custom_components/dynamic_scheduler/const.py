@@ -18,3 +18,9 @@ CONF_USE_ALL_IN = "use_all_in"  # True = priceIncludingMarkup, False = marketPri
 # ENTSO-E-specifieke opties
 CONF_ENTSOE_API_KEY = "entsoe_api_key"
 CONF_ENTSOE_COUNTRY = "entsoe_country"  # bijv. "NL"
+
+# Tariff resolution / prijs-resolutie
+CONF_TARIFF_RESOLUTION = "tariff_resolution"
+
+TARIFF_RESOLUTION_HOURLY = "hourly"
+TARIFF_RESOLUTION_QUARTER_HOURLY = "quarter_hourly"
