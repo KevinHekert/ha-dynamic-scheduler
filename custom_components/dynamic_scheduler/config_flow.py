@@ -18,6 +18,9 @@ from .const import (
     CONF_USE_ALL_IN,
     CONF_ENTSOE_API_KEY,
     CONF_ENTSOE_COUNTRY,
+    CONF_TARIFF_RESOLUTION,
+    TARIFF_RESOLUTION_HOURLY,
+    TARIFF_RESOLUTION_QUARTER_HOURLY,
 )
 
 
@@ -53,12 +56,15 @@ class DynamicSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     provider_cfg[CONF_ENTSOE_API_KEY] = api_key
                     provider_cfg[CONF_ENTSOE_COUNTRY] = country or "NL"
 
+            tariff_resolution = user_input.get(CONF_TARIFF_RESOLUTION, TARIFF_RESOLUTION_HOURLY)
+
             return self.async_create_entry(
                 title=name,
                 data={
                     "name": name,
                     CONF_PROVIDER: provider,
                     CONF_PROVIDER_CONFIG: provider_cfg,
+                    CONF_TARIFF_RESOLUTION: tariff_resolution,
                 },
             )
 
@@ -73,6 +79,15 @@ class DynamicSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # ENTSO-E-specifiek; verplicht als je die provider kiest
                 vol.Optional(CONF_ENTSOE_API_KEY): cv.string,
                 vol.Optional(CONF_ENTSOE_COUNTRY, default="NL"): cv.string,
+                vol.Optional(
+                    CONF_TARIFF_RESOLUTION,
+                    default=TARIFF_RESOLUTION_HOURLY,
+                ): vol.In(
+                    {
+                        TARIFF_RESOLUTION_HOURLY: "Hourly (60-minute)",
+                        TARIFF_RESOLUTION_QUARTER_HOURLY: "Quarter-hourly (15-minute)",
+                    }
+                ),
             }
         )
 

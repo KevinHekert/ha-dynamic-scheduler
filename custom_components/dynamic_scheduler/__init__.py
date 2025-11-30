@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 import logging
+from datetime import timedelta
+
 import voluptuous as vol
 from homeassistant.helpers import config_validation as cv
 from homeassistant.config_entries import ConfigEntry
@@ -10,19 +12,27 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util, slugify
 
-from .const import DOMAIN, CONF_PROVIDER, CONF_PROVIDER_CONFIG
+from .const import (
+    DOMAIN,
+    CONF_PROVIDER,
+    CONF_PROVIDER_CONFIG,
+    CONF_TARIFF_RESOLUTION,
+    TARIFF_RESOLUTION_HOURLY,
+    TARIFF_RESOLUTION_QUARTER_HOURLY,
+)
 from .price_providers import create_price_provider
-from .scheduler import store_test_slots_for_calendar, schedule_calendar_from_prices
-
+from .scheduler import schedule_calendar_from_prices
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [Platform.CALENDAR]
+
 SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required("calendar_entity_id"): cv.entity_id,
         vol.Required("deadline_time"): cv.time,  # wordt datetime.time
         vol.Required("runtime"): cv.time,        # wordt datetime.time
-        vol.Optional("slot_length_minutes", default=60): vol.All(
+        # Geen default meer hier, zodat we kunnen zien of de gebruiker 'm echt meegeeft
+        vol.Optional("slot_length_minutes"): vol.All(
             int, vol.Range(min=5, max=240)
         ),
         vol.Optional("continuous", default=False): cv.boolean,
@@ -30,17 +40,17 @@ SERVICE_SCHEMA = vol.Schema(
     }
 )
 
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Dynamic Scheduler integration (no YAML config)."""
 
     async def handle_schedule(call: ServiceCall) -> None:
-        """Schedule handler: parse inputs, fetch prices, and (for now) write test slots."""
-        from datetime import timedelta
+        """Schedule handler: parse inputs, fetch prices, and write calendar events."""
 
         calendar_entity_id: str = call.data["calendar_entity_id"]
         deadline_time = call.data["deadline_time"]   # datetime.time
         runtime_time = call.data["runtime"]          # datetime.time
-        slot_length = call.data.get("slot_length_minutes", 60)
+        slot_length_override = call.data.get("slot_length_minutes")
         continuous = call.data.get("continuous", False)
         clear_existing = call.data.get("clear_existing", True)
 
@@ -59,20 +69,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         # Runtime HH:MM -> minuten
         total_run_minutes = runtime_time.hour * 60 + runtime_time.minute
 
-        _LOGGER.warning(
-            "Dynamic Scheduler schedule(): calendar=%s deadline=%s runtime=%s (%s min) slot=%s continuous=%s clear=%s",
-            calendar_entity_id,
-            deadline,
-            runtime_time,
-            total_run_minutes,
-            slot_length,
-            continuous,
-            clear_existing,
-        )
-
         # 2) Bijbehorende config entry zoeken (op basis van naam -> entity_id)
         #    entity_id = 'calendar.auto'  ->  'auto'
-        cal_slug = calendar_entity_id.split(".", 1)[1] if "." in calendar_entity_id else calendar_entity_id
+        cal_slug = (
+            calendar_entity_id.split(".", 1)[1]
+            if "." in calendar_entity_id
+            else calendar_entity_id
+        )
 
         target_entry: ConfigEntry | None = None
         for entry in hass.config_entries.async_entries(DOMAIN):
@@ -89,14 +92,44 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             )
             return
 
-        # 3) Provider-object maken op basis van config entry
+        # 3) Tarief-resolutie uit config entry (bepaalt standaard base_minutes)
+        tariff_resolution = target_entry.data.get(
+            CONF_TARIFF_RESOLUTION,
+            TARIFF_RESOLUTION_HOURLY,
+        )
+
+        if tariff_resolution == TARIFF_RESOLUTION_QUARTER_HOURLY:
+            default_base_minutes = 15
+        else:
+            default_base_minutes = 60
+
+        # slot_length_override uit de service-call (indien meegegeven) gaat vóór
+        base_minutes = slot_length_override or default_base_minutes
+
+        _LOGGER.warning(
+            (
+                "Dynamic Scheduler schedule(): calendar=%s deadline=%s "
+                "runtime=%s (%s min) base_minutes=%s "
+                "tariff_resolution=%s continuous=%s clear=%s"
+            ),
+            calendar_entity_id,
+            deadline,
+            runtime_time,
+            total_run_minutes,
+            base_minutes,
+            tariff_resolution,
+            continuous,
+            clear_existing,
+        )
+
+        # 4) Provider-object maken op basis van config entry
         provider_cfg = {
             CONF_PROVIDER: target_entry.data[CONF_PROVIDER],
             CONF_PROVIDER_CONFIG: target_entry.data.get(CONF_PROVIDER_CONFIG, {}),
         }
         provider = create_price_provider(provider_cfg)
 
-        # 4) Prijzen ophalen bij provider (Frank Energie API)
+        # 5) Prijzen ophalen bij provider
         price_records = await provider.async_get_prices(hass, now, deadline)
 
         _LOGGER.warning(
@@ -113,9 +146,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 price_records[0].value,
             )
 
-
-
-        price_records = await provider.async_get_prices(hass, now, deadline)
+        # 6) Echte scheduler gebruiken
         await schedule_calendar_from_prices(
             hass=hass,
             calendar_entity_id=calendar_entity_id,
@@ -125,14 +156,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             total_run_minutes=total_run_minutes,
             continuous=continuous,
             clear_existing=clear_existing,
-            base_minutes=15,  # interne resolutie
+            base_minutes=base_minutes,
         )
 
     hass.services.async_register(
-    DOMAIN,
-    "schedule",
-    handle_schedule,
-    schema=SERVICE_SCHEMA,
+        DOMAIN,
+        "schedule",
+        handle_schedule,
+        schema=SERVICE_SCHEMA,
     )
 
     return True
